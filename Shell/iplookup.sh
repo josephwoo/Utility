@@ -6,16 +6,18 @@ err_exit()
 	exit 1
 }
 
-field_name=$(echo $1 | egrep -o '(www\.)[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+\.?')
-if [[ $field_name != $1 ]]; then
-	ip_addr=$(echo $1 | egrep '\d+\.\d+\.\d+\.\d+')
-	[[ -z $ip_addr ]] && err_exit '🛑 Input invalid! accept eg: [www.example.com | 192.168.1.1]'
-else
-	ip_addr=$(nslookup $field_name | egrep -o '\d+\.\d+\.\d+\.\d+' | tail -n 1)
-	if [[ $(echo $ip_addr | egrep '\d+\.\d+\.\d+\.\d+') != $ip_addr ]]; then
-		err_exit '🛑 DNS no result ip_addr'
-	fi
+ip_addr=$(echo $1 | egrep '\d+\.\d+\.\d+\.\d+')
+if [[ -z $ip_addr ]]; then
+	field_name=$(echo $1 | egrep -o '[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+\.?')
+	for dns_result in $(dig +short $field_name); do
+		ip_addr=$(echo $dns_result | egrep '\d+\.\d+\.\d+\.\d+')
+		[[ -n $ip_addr ]] && break
+	done
 fi
+
+[[ -z $ip_addr ]] && err_exit '🛑 DNS address could not be found.
+									And input accepted eg: [www.example.com | 192.168.1.1]'
+
 
 address=$(wget -q "http://www.ip138.com/ips138.asp?ip=$ip_addr&action=2" -O - | iconv -f gb2312 -t utf8 | \
 egrep '本站.*' | egrep -o -e '<li>.*</li>')
